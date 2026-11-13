@@ -1,0 +1,2 @@
+# Extra packages needed only to build the Windows program (see packaging/BeamProfiler.spec).
+pyinstaller==6.22.3

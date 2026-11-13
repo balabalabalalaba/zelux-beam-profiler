@@ -1,0 +1,136 @@
+# Builds the Windows program on GitHub's Windows machines.
+#
+# Every push: run the tests, build BeamProfiler.exe with PyInstaller, self-test the
+# built program with the simulated beam, and make a portable zip and an installer.
+# Download them from the run's "Artifacts" section.
+#
+# Push a tag such as v0.2.0 to also publish them as a GitHub Release.
+
+name: Build Windows app
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            packaging/requirements-build.txt
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r packaging/requirements-build.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Version
+        id: version
+        run: |
+          $v = python -c "import beamprofiler; print(beamprofiler.__version__)"
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$v") {
+            Write-Error "Tag $env:GITHUB_REF_NAME does not match beamprofiler.__version__ = $v"
+            exit 1
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Tests (source)
+        run: |
+          python tests/test_analysis.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/test_thorlabs_sdk.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/test_quicksave.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m beamprofiler.desktop --smoke-test --smoke-out smoke-source.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Build with PyInstaller
+        run: pyinstaller packaging/BeamProfiler.spec --noconfirm --clean
+
+      - name: Self-test the built program (console build)
+        run: |
+          & dist\BeamProfiler\BeamProfilerConsole.exe --smoke-test --smoke-out smoke-console.json
+          if ($LASTEXITCODE -ne 0) { Get-Content smoke-console.json -ErrorAction SilentlyContinue; exit 1 }
+
+      - name: Self-test the built program (windowed build)
+        run: |
+          $p = Start-Process -FilePath dist\BeamProfiler\BeamProfiler.exe `
+                 -ArgumentList '--smoke-test', '--smoke-out', "$PWD\smoke-windowed.json" -Wait -PassThru
+          Get-Content smoke-windowed.json
+          if ($p.ExitCode -ne 0) { exit 1 }
+
+      - name: Licence and third-party notices
+        run: |
+          Copy-Item LICENSE dist\BeamProfiler\LICENSE.txt
+          # the user guide only: the developer README (build, source, repository) stays private
+          Copy-Item packaging\USER_GUIDE.txt "dist\BeamProfiler\User guide.txt"
+          python packaging/third_party_notices.py dist\BeamProfiler\THIRD_PARTY_NOTICES.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Portable zip
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          Compress-Archive -Path dist\BeamProfiler -DestinationPath "dist\BeamProfiler-$v-windows-portable.zip" -CompressionLevel Optimal
+
+      - name: Installer (Inno Setup)
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) { choco install innosetup -y --no-progress }
+          iscc /Q "/DAppVersion=${{ steps.version.outputs.version }}" packaging\installer.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: BeamProfiler-${{ steps.version.outputs.version }}-windows
+          path: |
+            dist/BeamProfiler-*-setup.exe
+            dist/BeamProfiler-*-windows-portable.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: smoke-test-reports
+          path: smoke-*.json
+          if-no-files-found: ignore
+
+      # Release files have fixed names (the version is in the release title), so the link
+      # https://github.com/<owner>/<repo>/releases/latest/download/BeamProfiler-setup.exe
+      # always gives the newest version.
+      - name: Release file names
+        if: github.ref_type == 'tag'
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          New-Item -ItemType Directory -Force dist\release | Out-Null
+          Copy-Item "dist\BeamProfiler-$v-setup.exe" dist\release\BeamProfiler-setup.exe
+          Copy-Item "dist\BeamProfiler-$v-windows-portable.zip" dist\release\BeamProfiler-portable.zip
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          name: Beam Profiler ${{ steps.version.outputs.version }}
+          body: |
+            **Download:** `BeamProfiler-setup.exe` (installer, recommended) or `BeamProfiler-portable.zip` (no installation).
+            Needs Windows 10/11 and ThorCam (for the camera driver and SDK). To update, run the new installer over the old version.
+          files: |
+            dist/release/BeamProfiler-setup.exe
+            dist/release/BeamProfiler-portable.zip

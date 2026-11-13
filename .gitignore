@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Measurement output (snapshots, logs)
+data/
+
+# Thorlabs SDK files copied from the ThorCam install; never commit them
+thorlabs_dlls/
+thorlabs_tsi_sdk/
+
+# Build output
+build/
+dist/
+*.spec.bak
+
+# OS
+.DS_Store
+Thumbs.db

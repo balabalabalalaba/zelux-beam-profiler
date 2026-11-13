@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beam Profiler</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/pixel.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><svg class="sprite" viewBox="0 0 16 9" width="32" height="18" aria-hidden="true" shape-rendering="crispEdges">
+    <rect x="0" y="2" width="5" height="5" fill="#566c86"/><rect x="1" y="3" width="3" height="3" fill="#333c57"/>
+    <rect x="5" y="3" width="2" height="3" fill="#94b0c2"/>
+    <rect x="7" y="4" width="9" height="1" fill="#ef7d57"/><rect x="9" y="3" width="1" height="3" fill="#ef7d57"/>
+    <rect x="12" y="2" width="1" height="5" fill="#b13e53"/><rect x="11" y="4" width="3" height="1" fill="#ffcd75"/>
+    <rect x="15" y="4" width="1" height="1" fill="#ffcd75"/></svg>Beam Profiler</div>
+  <div id="sourceBadge" class="badge">connecting…</div>
+  <div class="chip"><span class="k">FPS</span><span id="stFps" class="v">–</span></div>
+  <div class="chip"><span class="k">Exposure</span><span id="stExp" class="v">–</span></div>
+  <div class="chip level" title="Brightest pixel in the region of interest, as a percentage of the sensor's full scale. Aim for 50–90 %.">
+    <span class="k">Peak</span>
+    <span class="meter"><span id="stPeakBar"></span></span>
+    <span id="stPeak" class="v">–</span>
+  </div>
+  <div id="stMsg" class="topmsg"></div>
+  <div class="spacer"></div>
+  <button id="btnTheme" class="btn ghost icon" title="Switch between the classic and the pixel style" aria-label="Switch style">
+    <svg viewBox="0 0 7 7" width="14" height="14" aria-hidden="true" shape-rendering="crispEdges" fill="currentColor">
+      <rect x="3" y="0" width="1" height="7"/><rect x="0" y="3" width="7" height="1"/><rect x="2" y="2" width="3" height="3"/>
+    </svg></button>
+  <button id="btnPause" class="btn" title="Freeze or resume the live image (Space)">Freeze</button>
+  <button id="btnQuickSave" class="btn primary" title="Quick save: results, profiles and settings to the quick-save folder (Ctrl+S)">Save</button>
+  <button id="btnSnap" class="btn" title="Save the current frame as a 16-bit TIFF image with its results (.json)">Snapshot</button>
+  <button id="btnLog" class="btn" title="Record beam size and position to a CSV file">Start log</button>
+</header>
+
+<main class="layout">
+  <!-- ------------------------------------------------ left: controls -->
+  <aside class="side left">
+    <details open id="secCamera">
+      <summary>Camera</summary>
+      <label class="row">Exposure (ms)
+        <input id="exp" type="number" data-s="exposure_ms" min="0.04" step="any">
+      </label>
+      <input id="expSlider" type="range" min="0" max="1000" step="1" aria-label="Exposure">
+      <label class="row check"><input type="checkbox" data-s="auto_exposure"> Auto exposure
+        <select data-s="ae_target" data-num title="Target peak level">
+          <option value="0.5">50 %</option><option value="0.65">65 %</option>
+          <option value="0.75">75 %</option><option value="0.85">85 %</option>
+        </select>
+      </label>
+      <label class="row" id="gainRow">Gain (dB)
+        <input type="number" data-s="gain_db" min="0" step="0.5">
+      </label>
+      <label class="row">Average frames
+        <input type="number" data-s="averaging" min="1" max="32" step="1">
+      </label>
+    </details>
+
+    <details open id="secSave">
+      <summary>Quick save</summary>
+      <label class="stack" title="Where quick saves go. Remembered between runs.">Folder
+        <input id="qsFolder" type="text" spellcheck="false" autocomplete="off">
+      </label>
+      <div class="btnrow">
+        <button id="qsPick" class="btn small">Choose folder…</button>
+        <button id="qsOpen" class="btn small ghost">Open</button>
+      </div>
+      <label class="row">File name
+        <input id="qsName" type="text" spellcheck="false" autocomplete="off">
+      </label>
+      <label class="row" title="Stored in the file and in the summary table, e.g. the z position.">Note
+        <input id="qsNote" type="text" placeholder="e.g. z = 25 mm" autocomplete="off">
+      </label>
+      <label class="row check" title="Also save the raw camera frame as a 16-bit TIFF, losslessly compressed (about 1 MB). With frame averaging it is the mean, rounded to whole counts."><input id="qsRaw" type="checkbox"> Also save the raw frame (.tif)</label>
+      <button id="qsSave" class="btn primary wide" title="Ctrl+S">Save now</button>
+      <div id="qsLast" class="hint">Saves results, profiles and settings as .json and adds a row to quicksave_summary.csv.</div>
+    </details>
+
+    <details id="secSettings">
+      <summary>Settings file</summary>
+      <div class="btnrow">
+        <button id="setSave" class="btn small">Save settings…</button>
+        <button id="setLoad" class="btn small">Load settings…</button>
+      </div>
+      <input id="setFile" type="file" accept=".json,application/json" hidden>
+      <div class="hint">Camera, measurement, display and calibration settings in a .json file. Loading also accepts a quick-save file, to repeat its settings.</div>
+    </details>
+
+    <details open>
+      <summary>Background</summary>
+      <div class="btnrow">
+        <button id="btnDark" class="btn small" title="Block the beam first, then click. Averages 16 frames.">Capture dark frame</button>
+        <button id="btnDarkClear" class="btn small ghost">Clear</button>
+      </div>
+      <div id="darkInfo" class="hint">No dark frame stored.</div>
+      <label class="row check"><input type="checkbox" data-s="use_dark"> Subtract dark frame</label>
+      <label class="row check" title="Subtracts the mean level of the four corners of the region of interest."><input type="checkbox" data-s="auto_baseline"> Auto baseline (ROI corners)</label>
+    </details>
+
+    <details open>
+      <summary>Region of interest</summary>
+      <label class="row check" title="Keeps a region of 3× the beam diameter centred on the beam."><input type="checkbox" data-s="auto_roi"> Track beam automatically</label>
+      <div class="grid4">
+        <label>X<input id="roiX" type="number" step="1"></label>
+        <label>Y<input id="roiY" type="number" step="1"></label>
+        <label>W<input id="roiW" type="number" step="1"></label>
+        <label>H<input id="roiH" type="number" step="1"></label>
+      </div>
+      <div class="btnrow">
+        <button id="btnRoiFull" class="btn small">Full frame</button>
+        <button id="btnRoiZoom" class="btn small ghost">Zoom to ROI</button>
+      </div>
+      <div class="hint">Drag on the image to draw a region. Values are in pixels.</div>
+    </details>
+
+    <details open>
+      <summary>Measurement</summary>
+      <label class="row">Beam width from
+        <select data-ui="widthDef">
+          <option value="d4xy">D4σ along X, Y</option>
+          <option value="d4pa">D4σ major, minor axis</option>
+          <option value="g1">Gaussian fit X, Y</option>
+          <option value="g2">2D Gaussian fit major, minor</option>
+        </select>
+      </label>
+      <label class="row">Show as
+        <select data-ui="showAs">
+          <option value="radius">Radius (1/e²)</option>
+          <option value="diameter">Diameter (1/e²)</option>
+        </select>
+      </label>
+      <label class="row">Units
+        <select data-ui="unit"><option value="um">µm</option><option value="mm">mm</option></select>
+      </label>
+      <label class="row">Profile type
+        <select data-s="profile_mode">
+          <option value="slice">Slice through a point</option>
+          <option value="sum">Integrated (summed)</option>
+        </select>
+      </label>
+      <label class="row">Slice through
+        <select data-s="profile_center">
+          <option value="centroid">Centroid</option>
+          <option value="peak">Peak</option>
+          <option value="cursor">Cursor (click image)</option>
+        </select>
+      </label>
+      <label class="row" title="The slice is the mean of 2n+1 pixel rows/columns.">Slice half-width (px)
+        <input type="number" data-s="slice_halfwidth" min="0" max="50" step="1">
+      </label>
+      <label class="row check"><input type="checkbox" data-s="fit2d"> 2D elliptical Gaussian fit</label>
+    </details>
+
+    <details>
+      <summary>Display</summary>
+      <label class="row">Style
+        <select data-ui="theme">
+          <option value="classic">Classic</option><option value="pixel">Pixel</option>
+        </select>
+      </label>
+      <label class="row">Colour map
+        <select data-ui="colormap">
+          <option value="beam">Beam</option><option value="jet">Jet</option>
+          <option value="viridis">Viridis</option><option value="inferno">Inferno</option>
+          <option value="gray">Grey</option>
+          <option value="pixel">Pixel (16 steps)</option><option value="gameboy">Handheld (4 greens)</option>
+        </select>
+      </label>
+      <label class="row">Intensity scale
+        <select data-s="display_scale">
+          <option value="linear">Linear</option><option value="sqrt">Square root</option><option value="log">Logarithmic</option>
+        </select>
+      </label>
+      <label class="row check"><input type="checkbox" data-s="autoscale"> Stretch contrast to the peak</label>
+      <label class="row">Stream resolution
+        <select data-s="stream_scale" data-num>
+          <option value="0">Auto</option><option value="1">Full</option><option value="2">Half</option><option value="4">Quarter</option>
+        </select>
+      </label>
+      <label class="row check"><input type="checkbox" data-ui="ovCross"> Crosshair</label>
+      <label class="row check"><input type="checkbox" data-ui="ovEllipse"> Beam ellipse</label>
+      <label class="row check"><input type="checkbox" data-ui="ovSat"> Highlight saturated pixels</label>
+    </details>
+
+    <details>
+      <summary>Calibration</summary>
+      <label class="row">Pixel size (µm)
+        <input type="number" data-s="pixel_size_um" min="0.01" step="any">
+      </label>
+      <label class="row" title="Set this if a lens images the beam onto the sensor. Lengths are divided by it.">Magnification
+        <input type="number" data-s="magnification" min="0.001" step="any">
+      </label>
+      <label class="row">Wavelength (nm)
+        <input type="number" data-s="wavelength_nm" min="100" step="any">
+      </label>
+      <label class="row" title="Total beam power measured with a power meter. Used for the peak intensity.">Beam power (mW)
+        <input type="number" data-ui="power" min="0" step="any" placeholder="optional">
+      </label>
+      <label class="row" title="Saturation intensity, for the I/Isat readout. 1.67 mW/cm² is the ⁸⁷Rb D2 cycling transition.">I<sub>sat</sub> (mW/cm²)
+        <input type="number" data-ui="isat" min="0" step="any">
+      </label>
+    </details>
+
+    <details>
+      <summary>Source</summary>
+      <div class="btnrow">
+        <button id="btnLoad" class="btn small">Open image file…</button>
+        <button id="btnLive" class="btn small ghost">Live camera</button>
+      </div>
+      <input id="fileInput" type="file" accept=".png,.tif,.tiff,.bmp,.jpg,.jpeg,.npy" hidden>
+      <div class="hint">PNG, TIFF, BMP, JPEG or NumPy .npy. You can also drop a file on the image.</div>
+      <label class="row" title="Logging writes one row at most this often.">Log interval (s)
+        <input type="number" data-s="log_interval_s" min="0" step="any">
+      </label>
+    </details>
+
+    <details id="secSim" hidden>
+      <summary>Simulator</summary>
+      <label class="row">Radius 1 (µm)<input type="number" data-sim="wx_um" step="10"></label>
+      <label class="row">Radius 2 (µm)<input type="number" data-sim="wy_um" step="10"></label>
+      <label class="row">Angle (°)<input type="number" data-sim="angle_deg" step="5"></label>
+      <label class="row">Jitter (µm)<input type="number" data-sim="jitter_um" step="0.5"></label>
+      <label class="row">Fringe depth<input type="number" data-sim="fringes" step="0.05" min="0" max="1"></label>
+    </details>
+  </aside>
+
+  <!-- ------------------------------------------------ centre: image -->
+  <section class="center">
+    <div class="imgpanel">
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Mouse tool">
+          <button data-tool="roi" class="on" title="Draw, move or resize the region of interest (R)">ROI</button>
+          <button data-tool="pan" title="Drag to move the view (P). Scroll to zoom.">Pan</button>
+          <button data-tool="cursor" title="Click to place the profile cursor (C)">Cursor</button>
+        </div>
+        <button id="btnFit" class="btn small ghost" title="Show the whole sensor (F, or double-click)">Fit view</button>
+        <button id="btnOrigin" class="btn small ghost" title="Report the centroid position relative to where the beam is now">Set position zero</button>
+        <div class="spacer"></div>
+        <div id="hover" class="hover"></div>
+      </div>
+      <div id="imgwrap" class="imgwrap">
+        <canvas id="img"></canvas>
+        <div id="overlayMsg" class="overlaymsg" hidden>
+          <div class="box">
+            <h2 id="ovTitle">No camera</h2>
+            <p id="ovText"></p>
+            <div class="btnrow center">
+              <button id="ovRetry" class="btn">Retry camera</button>
+              <button id="ovLoad" class="btn">Open image file…</button>
+              <button id="ovSim" class="btn ghost">Use simulator</button>
+            </div>
+          </div>
+        </div>
+        <div id="dropHint" class="drophint" hidden>Drop the image to analyse it</div>
+      </div>
+    </div>
+
+    <div class="bottompanel">
+      <div class="tabs" role="tablist">
+        <button data-tab="trend" class="on" role="tab">Size over time</button>
+        <button data-tab="point" role="tab">Pointing</button>
+        <button data-tab="m2" role="tab">M² / waist</button>
+        <div class="spacer"></div>
+        <label class="inline" id="histCtl">Window
+          <select data-ui="histWindow">
+            <option value="30">30 s</option><option value="120">2 min</option>
+            <option value="600">10 min</option><option value="0">All</option>
+          </select>
+        </label>
+        <button id="btnHistClear" class="btn small ghost">Clear</button>
+      </div>
+      <div id="tab-trend" class="tabbody">
+        <canvas id="plotTrend" class="plot"></canvas>
+        <div id="trendStats" class="stats"></div>
+      </div>
+      <div id="tab-point" class="tabbody" hidden>
+        <canvas id="plotPoint" class="plot"></canvas>
+        <div id="pointStats" class="stats"></div>
+      </div>
+      <div id="tab-m2" class="tabbody m2" hidden>
+        <div class="m2left">
+          <div class="m2form">
+            <label>z (mm)<input id="m2z" type="number" step="any" value="0"></label>
+            <label>step (mm)<input id="m2step" type="number" step="any" value="10"></label>
+            <button id="m2Add" class="btn small">Add point</button>
+            <button id="m2Export" class="btn small ghost">Export CSV</button>
+            <button id="m2Clear" class="btn small ghost">Clear</button>
+          </div>
+          <div class="m2table"><table id="m2tbl"><thead><tr><th>z (mm)</th><th id="m2ha">w₁</th><th id="m2hb">w₂</th><th></th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="m2right">
+          <canvas id="plotM2" class="plot"></canvas>
+          <div id="m2res" class="m2res"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------ right: results -->
+  <aside class="side right">
+    <div class="tiles">
+      <div class="tile xa"><div id="tileLa" class="lbl">X</div><div id="tileA" class="big">–</div></div>
+      <div class="tile xb"><div id="tileLb" class="lbl">Y</div><div id="tileB" class="big">–</div></div>
+    </div>
+    <div id="tileCap" class="caption"></div>
+    <ul id="warnings" class="warnings"></ul>
+    <table id="results" class="results"><tbody></tbody></table>
+    <div class="proftitle"><span class="dot x"></span>X profile <span id="profXinfo" class="muted"></span></div>
+    <canvas id="plotX" class="plot prof"></canvas>
+    <div class="proftitle"><span class="dot y"></span>Y profile <span id="profYinfo" class="muted"></span></div>
+    <canvas id="plotY" class="plot prof"></canvas>
+  </aside>
+</main>
+
+<div id="modal" class="modal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h2 id="modalTitle"></h2>
+    <p id="modalText"></p>
+    <div id="modalBtns" class="btnrow center"></div>
+  </div>
+</div>
+<div id="toasts" class="toasts"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

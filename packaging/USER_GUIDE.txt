@@ -1,0 +1,155 @@
+BEAM PROFILER - USER GUIDE
+==========================
+
+A live laser beam profiler for Thorlabs Zelux scientific cameras (made for the
+CS165MU1). It shows the live image, the beam size and position, profiles and
+trends, and saves the results for analysis.
+
+
+INSTALL
+-------
+
+1. Install ThorCam from thorlabs.com. It installs the camera's USB driver and
+   the camera software that Beam Profiler uses.
+2. Run BeamProfiler-setup.exe. No administrator rights are needed.
+   Windows may say the publisher is unknown: choose "More info", then
+   "Run anyway".
+3. Close ThorCam (only one program can use the camera at a time) and start
+   Beam Profiler from the Start menu.
+
+To update, run a newer BeamProfiler-setup.exe over the old version. There is no need to
+uninstall; your settings and save folder are kept.
+
+Portable version: unzip BeamProfiler-portable.zip anywhere and run
+BeamProfiler.exe. Nothing is installed.
+
+Beam Profiler opens in its own window. Closing the window stops the program
+and releases the camera.
+
+The Start menu also has:
+- "Beam Profiler (simulated beam)": try the program without a camera.
+- "Beam Profiler (troubleshooting console)": the same program with a window
+  that shows its messages.
+
+
+IF THE CAMERA IS NOT FOUND
+--------------------------
+
+- "Thorlabs camera SDK was not found": ThorCam is not installed, or is
+  installed in an unusual place. Copy ThorCam's Scientific_Camera_Interfaces.zip
+  (normally in C:\Program Files\Thorlabs\Scientific Imaging\Scientific Camera
+  Support) into the Beam Profiler folder and press "Retry camera".
+- "No Thorlabs camera found": check the USB 3.0 cable and that ThorCam is
+  closed.
+
+The program writes a log to %LOCALAPPDATA%\BeamProfiler\beamprofiler.log.
+
+
+THE WINDOW
+----------
+
+Top bar        Source, frame rate, exposure, peak level; Freeze, Save,
+               Snapshot, Start log
+Camera         Exposure, auto exposure, gain, frame averaging (up to 32)
+Quick save     Folder, file name, note; Save now
+Settings file  Save settings / Load settings
+Background     Dark-frame capture and subtraction; automatic baseline
+Region of      Draw it on the image, type numbers, or let it track the beam
+interest
+Measurement    Which width is shown (D4-sigma, Gaussian fit, 2D Gaussian fit),
+               radius or diameter, units, profile type
+Display        Style (Classic or Pixel), colour map, intensity scale, overlays
+Calibration    Pixel size, magnification, wavelength, beam power
+Bottom tabs    Size over time, pointing stability, M2 / waist fit
+
+Mouse: drag to draw the region of interest, drag its corners to resize it,
+drag inside it to move it. Scroll to zoom, Alt-drag (or the Pan tool) to move
+the view, double-click to fit.
+Keys: R, P, C choose the tool; F fits the view; Space freezes the image;
+Ctrl+S quick-saves.
+
+
+QUICK SAVE
+----------
+
+Choose a folder once ("Choose folder..." or type the path); it is remembered.
+Then "Save" in the top bar (or Ctrl+S) saves at once, without a dialog. You
+are asked only if a file with that name already exists. The file name counts
+up by itself (beam_001, beam_002, ...), and the Note (e.g. "z = 25 mm") is
+stored with the save.
+
+Each save writes:
+- <name>.json: all results in micrometres (all widths are 1/e^2 RADII), both
+  profiles at full resolution with their Gaussian fits, the peak level and
+  other status, the camera and every setting.
+- one new row in quicksave_summary.csv in the same folder: one row per save,
+  for a spreadsheet or Python.
+- <name>.tif, only if "Also save the raw frame" is ticked: the camera image
+  as a 16-bit TIFF in camera counts, losslessly compressed (about 1 MB).
+  With frame averaging it is the average, rounded to whole counts.
+
+If quicksave_summary.csv is open in Excel, the save still works and the row
+is added at the next save after you close it.
+
+Snapshot (top bar) saves the image as a 16-bit TIFF with a .json of the
+results to Documents\BeamProfiler\snapshots. Start log records the beam size
+and position over time to a CSV file in Documents\BeamProfiler\logs.
+
+
+SETTINGS FILE
+-------------
+
+"Save settings..." writes the camera, measurement, display and calibration
+settings to a .json file. "Load settings..." applies it again; it also
+accepts a quick-save .json, to repeat the settings of an earlier measurement.
+
+
+M2 / WAIST
+----------
+
+Move the camera along the beam, type its position z and click "Add point" at
+each place. With three or more points the program fits
+w(z) = sqrt(w0^2 + theta^2 (z - z0)^2) and reports w0, z0, the Rayleigh
+range and M2.
+
+
+MEASUREMENT NOTES
+-----------------
+
+- Attenuate the beam. The sensor saturates at microwatt levels and can be
+  damaged by a focused beam. Use absorptive ND filters, slightly tilted.
+- Keep the peak at 50-90 %. Saturated pixels are drawn in magenta and make
+  every width read too large. Keep the gain at 0 dB and use the exposure.
+- Definitions. The Gaussian w is the 1/e^2 intensity radius. D4-sigma is the
+  ISO 11146 second-moment diameter; for an ideal Gaussian D4-sigma = 2w.
+  "Radius" shows D4-sigma / 2.
+- Leave "Auto baseline" on, and capture a dark frame (beam blocked) if the
+  background is uneven. Capture it again after changing the exposure.
+- With 3.45 um pixels and a 4.97 x 3.73 mm sensor, 1/e^2 radii from about
+  30 um to 1 mm work. A warning appears when the beam is cut off enough to
+  bias D4-sigma.
+- "Gaussian fit X, Y" fits the profiles along the sensor axes. For a tilted
+  elliptical beam use "D4-sigma major, minor" or the 2D Gaussian fit.
+
+
+OPTIONS
+-------
+
+Add these to a shortcut to BeamProfiler.exe:
+  --camera sim     simulated beam instead of the camera
+  --serial SN      choose a camera when several are connected
+  --browser        open in the default browser instead of its own window
+  --lan            let other computers on the network open the page at
+                   http://<this PC's address>:8765/ (no password: use it
+                   on a trusted network only)
+
+
+LICENCE
+-------
+
+Beam Profiler is under the MIT licence (LICENSE.txt). It contains Python and
+other open-source components, each under its own licence
+(THIRD_PARTY_NOTICES.txt). Not affiliated with or endorsed by Thorlabs;
+Thorlabs, Zelux and ThorCam are trademarks of Thorlabs, Inc. The Thorlabs
+camera software is not included: Beam Profiler uses the copy installed with
+ThorCam.
