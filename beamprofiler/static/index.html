@@ -29,6 +29,7 @@
     <svg viewBox="0 0 7 7" width="14" height="14" aria-hidden="true" shape-rendering="crispEdges" fill="currentColor">
       <rect x="3" y="0" width="1" height="7"/><rect x="0" y="3" width="7" height="1"/><rect x="2" y="2" width="3" height="3"/>
     </svg></button>
+  <button id="btnMeasure" class="btn" title="Switch the beam analysis on or off (M). Off: no widths or fits, and the live image runs at full speed, e.g. while searching for the beam.">Measure: on</button>
   <button id="btnPause" class="btn" title="Freeze or resume the live image (Space)">Freeze</button>
   <button id="btnQuickSave" class="btn primary" title="Quick save: results, profiles and settings to the quick-save folder (Ctrl+S)">Save</button>
   <button id="btnSnap" class="btn" title="Save the current frame as a 16-bit TIFF image with its results (.json)">Snapshot</button>
@@ -117,6 +118,7 @@
 
     <details open>
       <summary>Measurement</summary>
+      <label class="row check" title="Off: no widths or fits, and the live image runs at full speed (key M)."><input type="checkbox" data-s="measure"> Measure (analyse every frame)</label>
       <label class="row">Beam width from
         <select data-ui="widthDef">
           <option value="d4xy">D4σ along X, Y</option>

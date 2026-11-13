@@ -23,6 +23,9 @@ from . import analysis
 from .cameras import CameraBase, CameraError, FileCamera, SimulatedCamera, load_image_bytes
 
 MAX_AVERAGING = 32
+# With no beam in view, auto exposure goes no higher than this. Chasing the noise up to
+# seconds-long exposures made the image update every few seconds while searching for the beam.
+AE_SEARCH_MAX_MS = 50.0
 
 DEFAULTS = {
     # camera
@@ -38,7 +41,8 @@ DEFAULTS = {
     # background
     "use_dark": False,
     "auto_baseline": True,
-    # profiles and fits
+    # profiles and fits; measure=False skips all analysis (fast live image while searching)
+    "measure": True,
     "profile_mode": "slice",
     "slice_halfwidth": 2,
     "profile_center": "centroid",
@@ -68,7 +72,7 @@ _FLOATS = {
     "log_interval_s": (0.0, 3600.0),
 }
 _INTS = {"averaging": (1, MAX_AVERAGING), "slice_halfwidth": (0, 50)}
-_BOOLS = {"auto_exposure", "paused", "auto_roi", "use_dark", "auto_baseline", "fit2d", "autoscale"}
+_BOOLS = {"auto_exposure", "paused", "auto_roi", "use_dark", "auto_baseline", "fit2d", "autoscale", "measure"}
 _ENUMS = {
     "profile_mode": ("slice", "sum"),
     "profile_center": ("centroid", "peak", "cursor"),
@@ -118,6 +122,7 @@ class Engine:
 
         self._auto_roi = None
         self._ae_wait_until = 0
+        self._ae_nobeam = 0  # auto-exposure checks in a row without a beam
         self._frozen = None
         self._last = None  # last processed frame, for snapshots
 
@@ -491,9 +496,15 @@ class Engine:
         peak_raw = int(rsub.max())
         sat_px = int(np.count_nonzero(rsub >= sat)) if peak_raw >= sat else 0
 
+        measure = bool(s["measure"])
         small = analysis.block_mean(sub, 2) if min(w, h) >= 16 else sub
         peak_sig = float(small.max())
-        valid = peak_sig > max(5.0 * noise, 4.0)
+        # Is a beam in view? Judged on a 4x4-binned copy, so single hot pixels (the real sensor
+        # has a few reading 15-28 counts in the dark) are diluted and do not count as a beam.
+        coarse = analysis.block_mean(small, 2) if small is not sub and min(small.shape) >= 16 else small
+        beam_seen = float(coarse.max()) > max(5.0 * noise, 4.0)
+        # With measurement off, the analysis below is skipped (fast live image).
+        valid = measure and beam_seen and peak_sig > max(5.0 * noise, 4.0)
 
         d4 = analysis.d4sigma(sub) if valid else None
         res = None
@@ -501,7 +512,7 @@ class Engine:
         full_prof = None
         if d4 is None:
             valid = False
-            st["msg"] = "No beam found in the region of interest"
+            st["msg"] = "No beam found in the region of interest" if measure else "Measurement is off"
         else:
             cx, cy = d4["cx"], d4["cy"]
             iy, ix = np.unravel_index(int(np.argmax(small)), small.shape)
@@ -575,7 +586,7 @@ class Engine:
             if s["auto_roi"]:
                 self._update_auto_roi(cx + x, cy + y, d4["dx"], d4["dy"], W, H)
         if not valid and s["auto_roi"]:
-            self._auto_roi = None
+            self._auto_roi = None  # also with measurement off: the level meter then sees the whole frame
 
         # ---- 8-bit display image of the whole frame
         sc = s["stream_scale"] or max(1, int(math.ceil(W / 800)))
@@ -614,6 +625,7 @@ class Engine:
             "dark_used": dark_used,
             "frame": fid,
             "paused": bool(s["paused"]),
+            "measure": measure,
         })
         header["res"] = res
         header["prof"] = prof
@@ -623,7 +635,7 @@ class Engine:
         self._last = {"avg": avg, "header": header, "settings": s, "profiles": full_prof}
         if live and cam.kind != "file":
             if s["auto_exposure"]:
-                self._auto_expose(cam, s, peak_raw, sat_px, sat, fid)
+                self._auto_expose(cam, s, peak_raw, sat_px, sat, fid, beam_seen)
             if valid:
                 self._log_row(header, s)
         return header, d8.tobytes()
@@ -663,20 +675,29 @@ class Engine:
         y1 = int(min(H, math.ceil(new["y"] + h)))
         self._auto_roi = {"x": x0, "y": y0, "w": max(8, x1 - x0), "h": max(8, y1 - y0)}
 
-    def _auto_expose(self, cam, s, peak_raw, sat_px, sat, fid) -> None:
+    def _auto_expose(self, cam, s, peak_raw, sat_px, sat, fid, beam_seen: bool = True) -> None:
         if fid < self._ae_wait_until:
             return
         exp = s["exposure_ms"]
         target = s["ae_target"]
         frac = peak_raw / sat
-        if sat_px > 0 or frac >= 0.985:
-            new = exp * 0.5
+        self._ae_nobeam = 0 if beam_seen else self._ae_nobeam + 1
+        if not beam_seen and sat_px == 0 and exp > AE_SEARCH_MAX_MS and self._ae_nobeam >= 3:
+            # the beam has gone (e.g. after a glimpse at the sensor edge): back to a search exposure
+            new = AE_SEARCH_MAX_MS
+        elif sat_px > 0 or frac >= 0.985:
+            # saturated (e.g. the beam is back after a search): come down quickly
+            new = exp * (0.25 if sat_px > 200 else 0.5)
         elif frac < target * 0.88 or frac > min(target * 1.12, 0.97):
             new = exp * target / max(frac, 0.02)
         else:
             return
         lo, hi = cam.exposure_range_ms
-        new = min(max(new, lo), min(hi, 2000.0))
+        hi = min(hi, 2000.0)
+        if not beam_seen and new > exp:
+            # no beam: do not raise the exposure into seconds just to amplify noise
+            hi = min(hi, max(AE_SEARCH_MAX_MS, exp))
+        new = min(max(new, lo), hi)
         if abs(new - exp) / exp < 0.02:
             return
         self.update_settings({"exposure_ms": new})

@@ -48,8 +48,8 @@ The program writes a log to %LOCALAPPDATA%\BeamProfiler\beamprofiler.log.
 THE WINDOW
 ----------
 
-Top bar        Source, frame rate, exposure, peak level; Freeze, Save,
-               Snapshot, Start log
+Top bar        Source, frame rate, exposure, peak level; Measure on/off,
+               Freeze, Save, Snapshot, Start log
 Camera         Exposure, auto exposure, gain, frame averaging (up to 32)
 Quick save     Folder, file name, note; Save now
 Settings file  Save settings / Load settings
@@ -66,7 +66,13 @@ Mouse: drag to draw the region of interest, drag its corners to resize it,
 drag inside it to move it. Scroll to zoom, Alt-drag (or the Pan tool) to move
 the view, double-click to fit.
 Keys: R, P, C choose the tool; F fits the view; Space freezes the image;
-Ctrl+S quick-saves.
+M switches measuring on or off; Ctrl+S quick-saves.
+
+Searching for the beam: press M (or "Measure" in the top bar) to switch the
+analysis off. No widths or fits are computed and the live image runs at full
+speed. Press M again when the beam is in view. With auto exposure on and no
+beam in view, the exposure stays at 50 ms or less, so the image keeps
+updating quickly.
 
 
 QUICK SAVE

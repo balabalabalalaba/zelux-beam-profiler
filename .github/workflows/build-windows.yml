@@ -60,6 +60,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python tests/test_quicksave.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/test_engine.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python -m beamprofiler.desktop --smoke-test --smoke-out smoke-source.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 

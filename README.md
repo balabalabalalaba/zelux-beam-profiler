@@ -128,7 +128,7 @@ Source → Open image file (PNG, TIFF, BMP, JPEG, `.npy`).
 
 | Area | What it does |
 | --- | --- |
-| Top bar | Source, frame rate, exposure, peak level meter; Freeze, Snapshot, Start log |
+| Top bar | Source, frame rate, exposure, peak level meter; Measure on/off, Freeze, Save, Snapshot, Start log |
 | Camera | Exposure, auto exposure, gain, frame averaging (up to 32) |
 | Background | Dark-frame capture and subtraction; automatic baseline from the ROI corners |
 | Region of interest | Draw on the image (ROI tool), type numbers, or let it track the beam |
@@ -139,7 +139,14 @@ Source → Open image file (PNG, TIFF, BMP, JPEG, `.npy`).
 
 Mouse: drag to draw the ROI, drag its corners to resize, drag inside to move.
 Scroll to zoom, Alt-drag (or the Pan tool) to move the view, double-click to
-fit. Keys: `R` `P` `C` tools, `F` fit view, `Space` freeze.
+fit. Keys: `R` `P` `C` tools, `F` fit view, `Space` freeze, `M` measure on/off,
+`Ctrl+S` quick save.
+
+**Searching for the beam:** press **M** (or *Measure* in the top bar) to switch
+the analysis off. No widths or fits are computed, and the live image runs at
+full speed; press **M** again when the beam is in view. Auto exposure no longer
+raises the exposure above 50 ms while no beam is visible (it used to go up to
+2 s per frame), and it comes down quickly when the returning beam saturates.
 
 **M² / waist:** move the camera along the beam, type its position z, click
 "Add point" at each place. With three or more points it fits

@@ -428,7 +428,12 @@ function drawPlot(cv, opt) {
 }
 
 function drawProfile(cv, p, color, infoEl) {
-  if (!p || !hdr) { drawPlot(cv, { series: [], empty: 'No beam' }); infoEl.textContent = ''; return; }
+  if (!p || !hdr) {
+    const off = hdr && hdr.status && hdr.status.measure === false;
+    drawPlot(cv, { series: [], empty: off ? 'Measurement off' : 'No beam' });
+    infoEl.textContent = '';
+    return;
+  }
   const k = hdr.um_per_px * (ui.unit === 'mm' ? 1e-3 : 1);
   const xs = new Array(p.v.length);
   for (let i = 0; i < xs.length; i++) xs[i] = (p.x0 + i * p.dx) * k;
@@ -479,9 +484,12 @@ function updateStatus() {
   const bar = $('#stPeakBar');
   bar.style.width = (pk != null ? Math.min(100, pk) : 0) + '%';
   bar.style.background = st.sat_px > 0 || pk >= 98 ? 'var(--bad)' : pk < 25 || pk > 92 ? 'var(--warn)' : 'var(--ok)';
-  $('#stMsg').textContent = st.msg || '';
+  $('#stMsg').textContent = st.measure === false ? '' : (st.msg || '');  // the Measure button already says it
 
   const paused = !!settings.paused;
+  const measuring = settings.measure !== false;
+  $('#btnMeasure').textContent = measuring ? 'Measure: on' : 'Measure: off';
+  $('#btnMeasure').classList.toggle('off', !measuring);
   $('#btnPause').textContent = paused ? 'Resume' : 'Freeze';
   $('#btnPause').classList.toggle('active', paused);
   const lg = st.log;
@@ -510,8 +518,9 @@ function updateResults() {
   const sym = ui.showAs === 'diameter' ? 'diameter' : 'radius';
   $('#tileLa').textContent = wp ? wp.la : 'X';
   $('#tileLb').textContent = wp ? wp.lb : 'Y';
-  $('#tileA').innerHTML = wp && wp.a != null ? `${fmtLen(wp.a * mult)}<small>${unitName()}</small>` : '–';
-  $('#tileB').innerHTML = wp && wp.b != null ? `${fmtLen(wp.b * mult)}<small>${unitName()}</small>` : '–';
+  const off = st.measure === false;
+  $('#tileA').innerHTML = off ? 'off' : wp && wp.a != null ? `${fmtLen(wp.a * mult)}<small>${unitName()}</small>` : '–';
+  $('#tileB').innerHTML = off ? 'off' : wp && wp.b != null ? `${fmtLen(wp.b * mult)}<small>${unitName()}</small>` : '–';
   const defName = { d4xy: 'D4σ (ISO 11146) along the sensor axes', d4pa: 'D4σ (ISO 11146) along the beam’s own axes', g1: 'Gaussian fit to the X and Y profiles', g2: '2D elliptical Gaussian fit' }[ui.widthDef];
   $('#tileCap').textContent = `1/e² ${sym} · ${defName}`;
 
@@ -520,7 +529,8 @@ function updateResults() {
   if (cam && cam.kind === 'sim') warn.push(['info', 'Simulated beam. Connect the camera on the Windows PC for real measurements.']);
   if (st.sat_px > 0) warn.push(['bad', `Saturated (${st.sat_px} px). Lower the exposure or add ND filters — widths read too large when saturated.`]);
   else if (r && st.peak_pct != null && st.peak_pct < 25) warn.push(['', 'Low signal. Raise the exposure for a cleaner measurement.']);
-  if (cam && !r && st.msg) warn.push(['', st.msg + '.']);
+  if (cam && off) warn.push(['info', 'Measurement is off: no widths or fits, and the live image runs at full speed. Press M or “Measure” to turn it back on.']);
+  else if (cam && !r && st.msg) warn.push(['', st.msg + '.']);
   if (r && r.edge_ratio != null && r.edge_ratio < 1.5) warn.push(['', 'The beam is cut off by the edge of the region or sensor, so D4σ reads low. Enlarge the region, or use the Gaussian fit.']);
   if (r && ui.widthDef === 'g2' && !r.g2) {
     warn.push(['', settings.fit2d ? '2D fit did not converge on this frame.' : 'Starting the 2D fit…']);
@@ -896,6 +906,7 @@ function celebrate(el) {
 /** Save without asking; only an existing file name brings up a question. */
 async function quickSave(overwrite, nameOverride) {
   if (qsBusy || !$('#modal').hidden) return;
+  if (settings.measure === false) { toast('Measurement is off, so there are no results to save. Press M or “Measure” to turn it on.', true); return; }
   qsBusy = true;
   const fIn = $('#qsFolder');
   if (!fIn.readOnly && fIn.value.trim() && fIn.value.trim() !== qsFolderSaved) {
@@ -947,7 +958,7 @@ $('#qsSave').addEventListener('click', () => quickSave());
 $('#btnQuickSave').addEventListener('click', () => quickSave());
 
 // --------------------------------------------------------- settings file
-const SETTINGS_SKIP = new Set(['paused']);
+const SETTINGS_SKIP = new Set(['paused', 'measure']);
 function settingsDoc() {
   const s = {};
   for (const [k, v] of Object.entries(settings)) if (!SETTINGS_SKIP.has(k)) s[k] = v;
@@ -1006,6 +1017,8 @@ $('#setFile').addEventListener('change', async (e) => {
 });
 
 $('#btnPause').addEventListener('click', () => postSettings({ paused: !settings.paused }));
+function toggleMeasure() { postSettings({ measure: settings.measure === false }); }
+$('#btnMeasure').addEventListener('click', toggleMeasure);
 $('#btnSnap').addEventListener('click', async () => {
   try {
     const r = await api('POST', '/api/snapshot');
@@ -1069,6 +1082,7 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { if (!e.repeat && e.target.tagName !== 'BUTTON') { spaceDown = true; } return; }
   const key = e.key.toLowerCase();
   if (key === 'f') fitView();
+  else if (key === 'm' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) toggleMeasure();
   else if (key === 'r' || key === 'p' || key === 'c') { ui.tool = { r: 'roi', p: 'pan', c: 'cursor' }[key]; saveUi(); applyUi(); dirtyImg = true; }
 });
 document.addEventListener('keyup', (e) => {

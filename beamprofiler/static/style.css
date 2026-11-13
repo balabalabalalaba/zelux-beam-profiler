@@ -34,6 +34,7 @@ button, input, select { font: inherit; color: inherit; }
 .badge {
   padding: 2px 9px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line);
   color: var(--muted); font-size: 12px; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+  flex: 0 1 auto; min-width: 12em;  /* may shrink, but "SIMULATED BEAM" stays readable */
 }
 .badge.live { color: var(--ok); border-color: #2c5a41; }
 .badge.sim { color: var(--warn); border-color: #6a5320; }
@@ -56,6 +57,7 @@ button, input, select { font: inherit; color: inherit; }
 .btn.ghost { background: transparent; }
 .btn.active { background: #17364a; border-color: var(--accent); color: var(--accent); }
 .btn.rec { background: #4a1b1b; border-color: var(--bad); color: #ffb3b3; }
+.btn.off { background: #3d3216; border-color: var(--warn); color: var(--warn); }
 .btn.primary { background: #17405a; border-color: #2c7cab; color: #e6f5ff; font-weight: 600; }
 .btn.primary:hover { background: #1c4f70; border-color: var(--accent); }
 .btn.danger { border-color: #7a3434; color: #ffb3b3; }
@@ -191,7 +193,12 @@ input[type=checkbox] { accent-color: var(--accent); margin: 0 2px 0 0; }
 .floater { display: none; }
 .toast a { color: var(--accent); margin-right: 8px; }
 
+@media (max-width: 1250px) {
+  .topbar { gap: 7px; }
+  .topbar .btn { padding: 5px 9px; }
+}
 @media (max-width: 1100px) {
   .layout { grid-template-columns: 240px minmax(0, 1fr) 290px; }
   .chip .k { display: none; }
+  .meter { width: 64px; }
 }

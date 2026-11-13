@@ -64,7 +64,7 @@
 [data-theme="pixel"] .brand .sprite { display: inline-block; animation: px-beam 1.2s steps(2) infinite; }
 @keyframes px-beam { 50% { filter: brightness(1.35); } }
 /* the source badge must stay readable ("SIMULATED BEAM"), so it does not shrink below its first words */
-[data-theme="pixel"] .badge { background: var(--ink); border: 0; box-shadow: var(--frame); font-size: 12px; padding: 2px 8px; flex: 0 0 auto; min-width: 10.5em; }
+[data-theme="pixel"] .badge { background: var(--ink); border: 0; box-shadow: var(--frame); font-size: 12px; padding: 2px 8px; flex: 0 1 auto; min-width: 10.5em; }
 [data-theme="pixel"] .badge.live { color: var(--y); }
 [data-theme="pixel"] .badge.sim { color: var(--warn); animation: px-blink 1.6s steps(1) infinite; }
 @keyframes px-blink { 50% { color: #c79a4f; } }
@@ -102,6 +102,7 @@
 [data-theme="pixel"] .btn.rec { background: #b13e53; color: #fff; animation: px-blink-rec 1s steps(1) infinite; }
 @keyframes px-blink-rec { 50% { background: #7a2235; } }
 [data-theme="pixel"] .btn.icon { color: var(--warn); }
+[data-theme="pixel"] .btn.off { background: #7a5a1f; color: #fff; }
 [data-theme="pixel"] .btn.wide { width: calc(100% - 4px); }
 [data-theme="pixel"] .btn:focus-visible,
 [data-theme="pixel"] input:focus-visible,
