@@ -1,5 +1,9 @@
 # Beam Profiler for the Thorlabs Zelux CS165MU1
 
+[![Downloads](https://img.shields.io/github/downloads/balabalabalalaba/zelux-beam-profiler/total?label=downloads&color=2ea44f)](https://github.com/balabalabalalaba/zelux-beam-profiler/releases)
+[![Latest release](https://img.shields.io/github/v/release/balabalabalalaba/zelux-beam-profiler?label=latest)](https://github.com/balabalabalalaba/zelux-beam-profiler/releases/latest)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
+
 A live laser beam profiler. A Python program reads the camera and does the
 analysis. Its window (a web page) shows the live image, beam widths, profiles
 and trends, and lets you set a region of interest, exposure and the rest.
