@@ -234,6 +234,13 @@ python -m beamprofiler --help
 ```
 
 
+## Authors
+
+Beam Profiler was created by [balabalabalalaba](https://github.com/balabalabalalaba)
+together with Claude, Anthropic's AI assistant (working in Claude Code): the
+camera interface, the beam analysis, the page, the Windows packaging and the
+tests were designed, written and checked by the two of us together.
+
 ## Licence
 
 Beam Profiler is under the [MIT licence](LICENSE).
