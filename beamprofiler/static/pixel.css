@@ -1,12 +1,23 @@
 /* Pixel style ("Display → Style → Pixel", or the ✚ button in the top bar).
    Everything here is scoped to :root[data-theme="pixel"]; the classic look is style.css.
    Palette: a 16-colour retro set (navy, slate, sky, mint, sun, coral, berry, white).
-   Fonts: Pixelify Sans and Press Start 2P (SIL Open Font License, see fonts/). */
+   Fonts: Pixelify Sans and Press Start 2P (SIL Open Font License, see fonts/).
+   Digits and the decimal point come from Press Start 2P ("Pixel Numerals" below): at the page's text sizes
+   Pixelify Sans' 5 reads as S, its 2 as Z and its 0 is the same shape as O. */
 
 @font-face {
   font-family: "Pixelify Sans";
   src: url("fonts/PixelifySans.woff2") format("woff2");
   font-weight: 400 700;
+  font-display: swap;
+}
+/* digits and the decimal point (which must sit on the same baseline), scaled to the height of
+   Pixelify Sans' figures; put it first in a font stack */
+@font-face {
+  font-family: "Pixel Numerals";
+  src: url("fonts/PressStart2P-Regular.ttf") format("truetype");
+  unicode-range: U+002E, U+0030-0039;
+  size-adjust: 64%;
   font-display: swap;
 }
 @font-face {
@@ -28,7 +39,7 @@
   --warn: #ffcd75;
   --bad: #ff5d6c;
   --ok: #38b764;
-  --mono: "Pixelify Sans", ui-monospace, monospace;
+  --mono: "Pixel Numerals", "Pixelify Sans", ui-monospace, monospace;
   --title: "Press Start 2P", "Pixelify Sans", monospace;
   --ink: #0b0c15;
   /* a notched 2px pixel frame, drawn with shadows so corners stay square-cut */
@@ -37,7 +48,8 @@
 
 /* ------------------------------------------------------------ basics */
 [data-theme="pixel"] body {
-  font: 15px/1.25 "Pixelify Sans", ui-monospace, monospace;
+  font: 15px/1.25 "Pixel Numerals", "Pixelify Sans", ui-monospace, monospace;
+  font-variant-ligatures: none;  /* Pixelify Sans' "fi" ligature reads as "A" at these sizes */
   background-color: var(--bg);
   background-image: radial-gradient(#ffffff0a 1px, transparent 1.2px);
   background-size: 6px 6px;
@@ -135,7 +147,8 @@
   box-shadow: var(--frame);
   margin: 2px;
   padding: 3px 6px;
-  font: 14px/1.15 "Pixelify Sans", ui-monospace, monospace;
+  font: 14px/1.15 "Pixel Numerals", "Pixelify Sans", ui-monospace, monospace;
+  font-variant-ligatures: none;
   color: var(--text);
 }
 [data-theme="pixel"] input[type=text][readonly] { color: var(--muted); }
@@ -210,7 +223,7 @@
   text-shadow: 2px 2px 0 #29366f;
   overflow: hidden;
 }
-[data-theme="pixel"] .tile .big small { font: 13px "Pixelify Sans", monospace; letter-spacing: 0; color: var(--muted); text-shadow: none; }
+[data-theme="pixel"] .tile .big small { font: 13px "Pixel Numerals", "Pixelify Sans", monospace; font-variant-ligatures: none; letter-spacing: 0; color: var(--muted); text-shadow: none; }
 [data-theme="pixel"] .tile.xa .big { color: #ffd2c2; }
 [data-theme="pixel"] .tile.xb .big { color: #e2ffc9; }
 [data-theme="pixel"] .caption { font-size: 13px; }

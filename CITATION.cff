@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+type: software
+title: "Beam Profiler for the Thorlabs Zelux CS165MU1"
+abstract: >-
+  A live laser beam profiler for the Thorlabs Zelux CS165MU1 camera: live
+  image, ISO 11146 second-moment (D4-sigma) widths, Gaussian fits, profiles,
+  trends and an M² / waist fit, with a built-in beam simulator.
+authors:
+  - given-names: Chongwu
+    family-names: Xie
+version: "0.3.9"
+date-released: "2026-11-14"
+license: MIT
+repository-code: "https://github.com/balabalabalalaba/zelux-beam-profiler"
+keywords:
+  - laser beam profiler
+  - beam profiling
+  - ISO 11146
+  - D4-sigma
+  - M2
+  - Thorlabs Zelux

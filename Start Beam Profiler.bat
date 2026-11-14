@@ -9,7 +9,7 @@ if not exist ".venv\Scripts\python.exe" (
   py -3 -m venv .venv 2>nul || python -m venv .venv
   if not exist ".venv\Scripts\python.exe" (
     echo.
-    echo Python was not found. Install Python 3.10 or newer from https://www.python.org/downloads/
+    echo Python was not found. Install Python 3.9 or newer from https://www.python.org/downloads/
     echo and tick "Add python.exe to PATH" in the installer, then run this file again.
     pause
     exit /b 1

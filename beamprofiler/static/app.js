@@ -15,7 +15,7 @@ const THEMES = {
   pixel: {
     x: '#ef7d57', y: '#a7f070', fit: '#f4f4f4', grid: '#2a3150', axis: '#94b0c2', accent: '#73eff7',
     frame: '#566c86', imgBg: '#0b0c15', imgBorder: '#566c86', fitEdge: '#94b0c2', warn: '#ffcd75', mark: '#f4f4f4',
-    mono: '"Pixelify Sans", ui-monospace, monospace', scale: 1.2,
+    mono: '"Pixel Numerals", "Pixelify Sans", ui-monospace, monospace', scale: 1.2,  // digits from Press Start 2P, see pixel.css
   },
 };
 let COL = THEMES.classic;
@@ -27,8 +27,11 @@ const UI_DEFAULTS = {
   widthDef: 'd4xy', showAs: 'radius', unit: 'um', colormap: 'beam',
   ovCross: true, ovEllipse: true, ovSat: true, power: '', isat: 1.67, histWindow: '120', tool: 'roi', theme: 'classic',
 };
+// colour maps renamed since earlier versions: old name -> new name (saved preferences and settings files)
+const CMAP_RENAMED = { gameboy: 'greens' };
+const upgradeUi = (v) => { if (v && CMAP_RENAMED[v.colormap]) v.colormap = CMAP_RENAMED[v.colormap]; return v; };
 let ui = { ...UI_DEFAULTS };
-try { ui = { ...ui, ...JSON.parse(localStorage.getItem('beamprofiler.ui') || '{}') }; } catch (e) { /* private mode */ }
+try { ui = upgradeUi({ ...ui, ...JSON.parse(localStorage.getItem('beamprofiler.ui') || '{}') }); } catch (e) { /* private mode */ }
 function saveUi() { try { localStorage.setItem('beamprofiler.ui', JSON.stringify(ui)); } catch (e) { /* ignore */ } }
 
 let settings = {};
@@ -99,7 +102,7 @@ const CMAPS = {
   inferno: ['000004', '1b0c41', '4a0c6b', '781c6d', 'a52c60', 'cf4446', 'ed6925', 'fb9b06', 'f7d13d', 'fcffa4'],
   // stepped (posterised) palettes for the pixel look; the measurement is unaffected
   pixel: { steps: ['1a1c2c', '333c57', '29366f', '3b5dc9', '41a6f6', '73eff7', '38b764', 'a7f070', 'ffcd75', 'ef7d57', 'f4f4f4'] },
-  gameboy: { steps: ['0f380f', '306230', '8bac0f', '9bbc0f'] },
+  greens: { steps: ['0f380f', '306230', '8bac0f', '9bbc0f'] },
 };
 let lut = new Uint32Array(256);
 function buildLut() {
@@ -146,6 +149,8 @@ function setupCanvas(cv) {
   if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
   const ctx = cv.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // pixel style: no ligatures (Pixelify Sans' "ff"/"fi" glyphs are unclear at small sizes), as in pixel.css
+  if ('textRendering' in ctx) ctx.textRendering = isPixel() ? 'optimizeSpeed' : 'auto';
   return { ctx, w, h };
 }
 
@@ -775,7 +780,8 @@ function applyTheme() {
   document.documentElement.dataset.theme = name;
   COL = THEMES[name];
   // canvas text needs the pixel font loaded before drawing with it
-  if (name === 'pixel' && document.fonts) document.fonts.load(cfont(11)).then(redrawAll, () => {});
+  // (with sample text, so that the digits-only face is loaded too)
+  if (name === 'pixel' && document.fonts) document.fonts.load(cfont(11), 'Aa 0123456789').then(redrawAll, () => {});
 }
 function applyUi() {
   applyTheme();
@@ -1010,6 +1016,7 @@ $('#setFile').addEventListener('change', async (e) => {
       if (typeof d === 'number' && typeof v === 'string' && v.trim() !== '' && isFinite(Number(v))) v = Number(v);
       if (k in UI_DEFAULTS && k !== 'tool' && typeof v === typeof d) { ui[k] = v; nView++; }
     }
+    upgradeUi(ui);
     saveUi(); applyUi(); history = []; updateResults(); renderM2(); redrawAll();
   }
   try { applyState(await api('POST', '/api/settings', patch)); } catch (err) { fail(err); return; }

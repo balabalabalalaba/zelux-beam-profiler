@@ -8,6 +8,12 @@ A live laser beam profiler. A Python program reads the camera and does the
 analysis. Its window (a web page) shows the live image, beam widths, profiles
 and trends, and lets you set a region of interest, exposure and the rest.
 
+![Beam Profiler main window: live image with the beam ellipse and crosshair, the X and Y widths, the results table, the X and Y profiles with their Gaussian fits, and the beam size over time](docs/main-view-classic.png)
+
+*The main window, running the built-in simulator (no camera). The simulated
+beam has 1/e² radii of 420 µm and 300 µm with its major axis at 25°; the
+program reads 419.8 µm and 299.4 µm at 25.0° ("D4σ / 2 — major · minor").*
+
 ## Download
 
 **[Download the installer for Windows](https://github.com/balabalabalalaba/zelux-beam-profiler/releases/latest/download/BeamProfiler-setup.exe)**
@@ -72,7 +78,8 @@ computers on the lab network.
 
 ## Windows: run from source (Python)
 
-1. Install **ThorCam** and **Python 3.12 or newer** from python.org. Tick
+1. Install **ThorCam** and **Python 3.9 or newer** from python.org (the
+   newest version is best; the Windows program is built with 3.13). Tick
    "Add python.exe to PATH".
 2. Copy this whole folder to the PC, close ThorCam, and double-click
    **`Start Beam Profiler.bat`**.
@@ -130,6 +137,11 @@ Source → Open image file (PNG, TIFF, BMP, JPEG, `.npy`).
 
 ## Using it
 
+![The simulated beam is moved through a focus while the program measures it: the widths, profiles and size-over-time plot follow it live](docs/live-view.gif)
+
+*Live view with the simulator: the simulated beam is taken through a focus
+and back (played about 1.4 times faster than real time).*
+
 | Area | What it does |
 | --- | --- |
 | Top bar | Source, frame rate, exposure, peak level meter; Measure on/off, Freeze, Save, Snapshot, Start log |
@@ -155,6 +167,13 @@ raises the exposure above 50 ms while no beam is visible (it used to go up to
 **M² / waist:** move the camera along the beam, type its position z, click
 "Add point" at each place. With three or more points it fits
 w(z) = sqrt(w0² + θ²(z − z0)²) and reports w0, z0, zR and M².
+
+![The M² / waist tab with eight points, the fitted caustics for both axes, and the waist, Rayleigh range, divergence and M² of each axis](docs/m2-waist.png)
+
+*M² / waist with the simulator, which was set at each z to a beam with
+waists of 300 µm (X) and 250 µm (Y) at z = 350 mm and 300 mm, and M² = 1.30
+and 1.15. The fit gives back 300.1 µm at 349.5 mm with M² 1.30, and
+250.1 µm at 299.7 mm with M² 1.15.*
 
 **Quick save:** choose a folder once in the *Quick save* panel (*Choose
 folder…*, or type the path). It is remembered between runs. After that,
@@ -194,6 +213,8 @@ to a pixel-art look with retro fonts and colours. Only the look changes, not
 the measurement. The *Pixel* and *Handheld* colour maps show the image in a
 few flat colour steps.
 
+![The same main window in the pixel style](docs/main-view-pixel.png)
+
 Snapshots go to `data/snapshots` (a 16-bit `.tif` of the raw frame, as for
 quick save, plus a `.json` with all results and settings). Logs go to `data/logs`
 as CSV.
@@ -219,17 +240,38 @@ as CSV.
 - **"Gaussian fit X, Y"** fits the two profiles along the sensor axes. For a
   tilted elliptical beam use "D4σ major, minor" or the 2D Gaussian fit.
 
+## What it does not do
+
+- **Live capture only through Thorlabs' SDK, on Windows.** The program reads
+  the camera through the Thorlabs camera SDK that comes with ThorCam, which
+  runs on Windows. It has been tested with the Zelux CS165MU1 only. On macOS,
+  Linux, or without a camera, only the built-in simulator and saved image
+  files work.
+- **M² is a fit to points you add, not the full ISO 11146 procedure.** The
+  D4σ widths follow the ISO 11146 second-moment definition. M² comes from a
+  fit of w(z) to the points you add by hand, at the positions you type in,
+  using whichever width is selected. The program does not move the camera,
+  and it does not check that the number and placement of the measurement
+  planes meet the standard.
+- **Checked on synthetic beams, not against another instrument.** The
+  automated tests check the analysis on synthetic beams of known size and the
+  whole program on the simulated beam. No comparison with a commercial beam
+  profiler is included.
+
 ## Checking the analysis
 
 ```
 .venv/bin/python tests/test_analysis.py        (Windows: .venv\Scripts\python tests\test_analysis.py)
 .venv/bin/python tests/test_thorlabs_sdk.py
 .venv/bin/python tests/test_quicksave.py
+.venv/bin/python tests/test_engine.py
 ```
 
 The first runs the analysis on synthetic beams of known size. The second
 checks that the SDK is found in ThorCam-style zip files. The third checks
-quick save against the simulated beam.
+quick save against the simulated beam. The fourth checks the Measure switch
+and auto exposure with the simulated beam: losing and finding the beam,
+and camera hot pixels not taken for a beam.
 
 ## Options
 
@@ -251,6 +293,9 @@ Beam Profiler was created by [balabalabalalaba](https://github.com/balabalabalal
 together with Claude, Anthropic's AI assistant (working in Claude Code): the
 camera interface, the beam analysis, the page, the Windows packaging and the
 tests were designed, written and checked by the two of us together.
+
+To cite Beam Profiler, use [`CITATION.cff`](CITATION.cff) (GitHub's *Cite this
+repository* button reads it).
 
 ## Licence
 

@@ -138,6 +138,20 @@ MEASUREMENT NOTES
   elliptical beam use "D4-sigma major, minor" or the 2D Gaussian fit.
 
 
+WHAT IT DOES NOT DO
+-------------------
+
+- The live camera works only through the Thorlabs camera software installed
+  with ThorCam, on Windows. It has been tested with the Zelux CS165MU1 only.
+  Without a camera, only the simulated beam and saved image files work.
+- The D4-sigma widths follow the ISO 11146 second-moment definition, but M2
+  comes from a fit to the points you add by hand, not from the full ISO 11146
+  measurement procedure. The program does not move the camera or check that
+  the number and placement of the points meet the standard.
+- The analysis has been checked on computer-generated beams of known size.
+  It has not been compared with a commercial beam profiler.
+
+
 OPTIONS
 -------
 
